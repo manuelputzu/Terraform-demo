@@ -1,0 +1,15 @@
+vpn_ip = "Your VPN-IP"
+
+vpc_id = "Your VPC-ID"
+
+subnet = "Your Subnet-ID"
+
+app_port = "8080"
+
+ssh_port = "22"
+
+instance_type = "t2.micro"
+
+ami = "Your Machine Image"
+
+profile-id = "Your ID" 
