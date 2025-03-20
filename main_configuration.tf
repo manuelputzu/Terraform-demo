@@ -27,6 +27,17 @@ provider "aws" {
 resource "aws_instance" "myec2" {
   ami = var.ami
   instance_type = var.instance_type
+
+  user_data = <<-EOF
+    #!/bin/bash
+    # install httpd (Linux 2 version)
+    yum update -y
+    yum install -y httpd
+    systemctl start httpd
+    systemctl enable httpd
+    echo "<h1>Hello World from $(hostname -f)</h1>" > /var/www/html/index.html
+  EOF
+
   subnet_id = var.subnet
   associate_public_ip_address = true # public IP
   tags = {
