@@ -1,15 +1,19 @@
-vpn_ip = "Your VPN-IP"
+variable "ami" {
+  description = "AMI ID for the EC2 instance"
+}
 
-vpc_id = "Your VPC-ID"
+variable "instance_type" {
+  description = "Type of EC2 instance"
+}
 
-subnet = "Your Subnet-ID"
+variable "subnet" {
+  description = "Subnet ID for the EC2 instance"
+}
 
-app_port = "8080"
+variable "vpc_id" {
+  description = "VPC ID where the security group is located"
+}
 
-ssh_port = "22"
-
-instance_type = "t2.micro"
-
-ami = "Your Machine Image"
-
-profile-id = "Your ID" 
+variable "security_group_id" {
+  description = "ID of the security group to be associated with the EC2 instance"
+}

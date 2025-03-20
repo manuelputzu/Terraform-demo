@@ -44,7 +44,7 @@ resource "aws_instance" "myec2" {
     Name = "my-first-ec2"
   }
 
-  vpc_security_group_ids = ["sg-0b7da58f2ec0524f6"] # Associate instance with security group
+  vpc_security_group_ids = [var.security_group_id] # Associate instance with security group
 }
 
 
@@ -52,7 +52,7 @@ resource "aws_instance" "myec2" {
 resource "aws_security_group" "allow_tls" {
     name        = "terraform-firewall"
     description = "Managed from terraform"
-    vpc_id      = "vpc-066c24b90c635c774"
+    vpc_id      = var.vpc_id
 }
 
 resource "aws_vpc_security_group_ingress_rule" "allow_tls_ipv4" {
