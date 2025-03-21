@@ -1,19 +1,27 @@
-variable "ami" {
-  description = "AMI ID for the EC2 instance"
-}
+# AWS Profile
+profile_id       = "Your ID"
 
-variable "instance_type" {
-  description = "Type of EC2 instance"
-}
+# VPC and Subnet CIDR Blocks
+vpc_cidr         = "10.0.0.0/16"
+subnet_a_cidr    = "10.0.1.0/24"
+subnet_b_cidr    = "10.0.2.0/24"
 
-variable "subnet" {
-  description = "Subnet ID for the EC2 instance"
-}
+# Availability Zones
+availability_zones = ["eu-central-1a", "eu-central-1b"]
 
-variable "vpc_id" {
-  description = "VPC ID where the security group is located"
-}
+# EC2 Instance Configuration
+ami              = "ami-0b74f796d330ab49c"
+instance_type    = "t2.micro"
 
-variable "security_group_id" {
-  description = "ID of the security group to be associated with the EC2 instance"
+# Security Group
+my_ip            = "Your IP"
+vpn_ip           = "Your IP"
+
+# Elastic Load Balancer
+elb_name         = "my-elb"
+target_group_name = "my-target-group"
+
+# EC2 Instance Tags
+ec2_instance_tags = {
+  Name = "my-first-ec2"
 }

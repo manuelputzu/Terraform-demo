@@ -60,7 +60,7 @@ instance_type = "t2.micro"
 
 ## Video Explanation
 Check out my YouTube video where I explain my thoughts on this Terraform setup:
-[Watch Here](YOUR_YOUTUBE_VIDEO_LINK)
+[Watch Here](https://youtu.be/bX18diFLLx0)
 
 ## License
 This project is licensed under the MIT License.
