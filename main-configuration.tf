@@ -74,7 +74,7 @@ resource "aws_route_table_association" "public_b" {
   route_table_id = aws_route_table.public_rt.id
 }
 
-# Security Group Configuration
+# Create a Security Group
 resource "aws_security_group" "allow_web_traffic" {
   name        = "terraform-firewall"
   description = "Managed by Terraform"
@@ -99,8 +99,8 @@ resource "aws_security_group" "allow_web_traffic" {
 
 # EC2 Instance attached to the new subnet and security group
 resource "aws_instance" "myec2" {
-  ami             = "ami-0b74f796d330ab49c"  # Define the AMI for the EC2 instance
-  instance_type   = "t2.micro"                # Define the EC2 instance type
+  ami             = var.ami               # Define the AMI for the EC2 instance
+  instance_type   = var.instance_type        # Define the EC2 instance type
   subnet_id = aws_subnet.my_subnet_a.id      # Use the subnet ID from the new subnet
   associate_public_ip_address = true          # Assign a public IP to the instance
 
@@ -122,8 +122,8 @@ resource "aws_instance" "myec2" {
 
 # Add a Second EC2 Instance in a different Availability Zone
 resource "aws_instance" "myec2_b" {
-  ami             = "ami-0b74f796d330ab49c"  # Define the AMI for the EC2 instance
-  instance_type   = "t2.micro"                # Define the EC2 instance type
+  ami             = var.ami             # Define the AMI for the EC2 instance
+  instance_type   = var.instance_type            # Define the EC2 instance type
   subnet_id       = aws_subnet.my_subnet_b.id  # Use a new subnet for the second instance in a different availability zone
   associate_public_ip_address = true          # Assign a public IP to the instance
 
