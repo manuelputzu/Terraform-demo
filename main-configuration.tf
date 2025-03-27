@@ -213,3 +213,27 @@ resource "aws_lb_listener" "http_listener" {
   }
 }
 
+output "ec2_public_ip_a" {
+  value = aws_instance.myec2.public_ip
+  description = "Public IP of the first EC2 instance"
+}
+
+output "ec2_public_ip_b" {
+  value = aws_instance.myec2_b.public_ip
+  description = "Public IP of the second EC2 instance"
+}
+
+output "alb_dns_name" {
+  value = aws_lb.my_alb.dns_name
+  description = "DNS name of the Application Load Balancer (ALB)"
+}
+
+output "security_group_id" {
+  value = aws_security_group.allow_web_traffic.id
+  description = "ID of the Security Group used by EC2 and ALB"
+}
+
+output "vpc_id" {
+  value = aws_vpc.my_vpc.id
+  description = "ID of the VPC"
+}

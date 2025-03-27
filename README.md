@@ -21,7 +21,7 @@ This Terraform configuration sets up a basic AWS infrastructure with an EC2 inst
 ### 3. Security Groups
 - **Ingress Rules:**
   - Allow HTTP traffic (ports 80-100) from all sources.
-  - Allow HTTPS traffic (port 443) from all sources.
+  - Plan to allow HTTPS traffic (port 443) from all sources.
   - Allow SSH access (port 22) from all sources.
 - **Egress Rules:**
   - Allow all outbound traffic.
