@@ -2,55 +2,69 @@
 provider "aws" {
   region  = "eu-central-1"
   profile = var.profile_id
+
+  default_tags {
+    tags = {
+      Project   = "Terraform Deployment"
+      ManagedBy = "Terraform"
+    }
+  }
 }
 
 # Create the VPC dynamically
-resource "aws_vpc" "my_vpc" {
+resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
-
   tags = {
-    Name = "MyNewVPC"
+    Name = "main-vpc"
   }
 }
 
-# Create a public subnet in availability zone A
-resource "aws_subnet" "my_subnet_a" {
-  vpc_id                  = aws_vpc.my_vpc.id
-  cidr_block              = var.subnet_a_cidr
-  availability_zone       = var.availability_zones[0]
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "MyPublicSubnetA"
+# Create public subnets, for each a different availability zone
+variable "subnets" {
+  description = "Map of subnet configurations"
+  type = map(object({
+    cidr_block        = string
+    availability_zone = string
+  }))
+  default = {
+    subnet1 = {
+      cidr_block        = "10.0.1.0/24"
+      availability_zone = "eu-central-1a"
+    },
+    subnet2 = {
+      cidr_block        = "10.0.2.0/24"
+      availability_zone = "eu-central-1b"
+    }
   }
 }
 
-# Create a public subnet in availability zone B
-resource "aws_subnet" "my_subnet_b" {
-  vpc_id                  = aws_vpc.my_vpc.id
-  cidr_block              = var.subnet_b_cidr
-  availability_zone       = var.availability_zones[1]
+resource "aws_subnet" "public_subnets" {
+  for_each = var.subnets
+
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = each.value.cidr_block
+  availability_zone       = each.value.availability_zone
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "MyPublicSubnetB"
+    Name = "PublicSubnet-${each.key}"
   }
 }
 
 # Create an Internet Gateway
 resource "aws_internet_gateway" "gw" {
-  vpc_id = aws_vpc.my_vpc.id
+  vpc_id = aws_vpc.main.id
 
   tags = {
     Name = "MyInternetGateway"
   }
 }
 
-# Create a public route table
-resource "aws_route_table" "public_rt" {
-  vpc_id = aws_vpc.my_vpc.id
+# Create a route table
+resource "aws_route_table" "main" {
+  vpc_id = aws_vpc.main.id
 
   route {
     cidr_block = "0.0.0.0/0"
@@ -58,27 +72,23 @@ resource "aws_route_table" "public_rt" {
   }
 
   tags = {
-    Name = "MyPublicRouteTable"
+    Name = "main-route-table"
   }
 }
 
-# Associate the public route table with subnet A
-resource "aws_route_table_association" "public_a" {
-  subnet_id      = aws_subnet.my_subnet_a.id
-  route_table_id = aws_route_table.public_rt.id
-}
+# Associate the route table with all subnets dynamically
+resource "aws_route_table_association" "subnet_association" {
+  for_each = aws_subnet.public_subnets
 
-# Associate the public route table with subnet B
-resource "aws_route_table_association" "public_b" {
-  subnet_id      = aws_subnet.my_subnet_b.id
-  route_table_id = aws_route_table.public_rt.id
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.main.id
 }
 
 # Create a Security Group
 resource "aws_security_group" "allow_web_traffic" {
   name        = "terraform-firewall"
   description = "Managed by Terraform"
-  vpc_id      = aws_vpc.my_vpc.id
+  vpc_id      = aws_vpc.main.id
 
   # Ingress Rules: Allow HTTP (IPv4)
   ingress {
@@ -97,37 +107,40 @@ resource "aws_security_group" "allow_web_traffic" {
   }
 }
 
-# EC2 Instance attached to the new subnet and security group
-resource "aws_instance" "myec2" {
-  ami             = var.ami               # Define the AMI for the EC2 instance
-  instance_type   = var.instance_type        # Define the EC2 instance type
-  subnet_id = aws_subnet.my_subnet_a.id      # Use the subnet ID from the new subnet
-  associate_public_ip_address = true          # Assign a public IP to the instance
+# Add IAM Role for EC2 Instances
+resource "aws_iam_role" "ec2_role" {
+  name = "EC2InstanceRole"
 
-  user_data = <<-EOF
-    #!/bin/bash
-    yum update -y
-    yum install -y httpd
-    systemctl start httpd
-    systemctl enable httpd
-    echo "<h1>Hello World from $(hostname -f)</h1>" > /var/www/html/index.html
-  EOF
-
-  vpc_security_group_ids = [aws_security_group.allow_web_traffic.id]  # Attach the security group
-
-  tags = {
-    Name = "my-first-ec2"
-  }
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
 }
 
-# Add a Second EC2 Instance in a different Availability Zone
-resource "aws_instance" "myec2_b" {
-  ami             = var.ami             # Define the AMI for the EC2 instance
-  instance_type   = var.instance_type            # Define the EC2 instance type
-  subnet_id       = aws_subnet.my_subnet_b.id  # Use a new subnet for the second instance in a different availability zone
-  associate_public_ip_address = true          # Assign a public IP to the instance
+resource "aws_iam_instance_profile" "ec2_profile" {
+  name = "EC2InstanceProfile"
+  role = aws_iam_role.ec2_role.name
+}
 
-  user_data = <<-EOF
+# Define the Launch Template
+resource "aws_launch_template" "my_launch_template" {
+  name          = "my-launch-template"
+  image_id      = var.ami
+  instance_type = var.instance_type
+
+  iam_instance_profile {
+    name = aws_iam_instance_profile.ec2_profile.name
+  }
+
+  vpc_security_group_ids = [aws_security_group.allow_web_traffic.id]
+
+  user_data = base64encode(<<-EOF
     #!/bin/bash
     yum update -y
     yum install -y httpd
@@ -135,20 +148,23 @@ resource "aws_instance" "myec2_b" {
     systemctl enable httpd
     echo "<h1>Hello World from $(hostname -f)</h1>" > /var/www/html/index.html
   EOF
+  )
 
-  vpc_security_group_ids = [aws_security_group.allow_web_traffic.id]  # Attach the security group
-
-  tags = {
-    Name = "my-second-ec2"
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name = "auto-scaled-ec2"
+    }
   }
 }
 
 # Configure a Target Group
 resource "aws_lb_target_group" "my_target_group" {
-  name     = "my-target-group"
-  port     = 80
-  protocol = "HTTP"
-  vpc_id   = aws_vpc.my_vpc.id  # Use the ID of the dynamically created VPC
+  name          = "my-target-group"
+  port          = 80
+  protocol      = "HTTP"
+  vpc_id        = aws_vpc.main.id
+  target_type   = "instance"
 
   health_check {
     path                = "/"
@@ -164,37 +180,17 @@ resource "aws_lb_target_group" "my_target_group" {
   }
 }
 
-# Register Targets (EC2 instances)
-resource "aws_lb_target_group_attachment" "my_target_group_attachment" {
-  target_group_arn = aws_lb_target_group.my_target_group.arn
-  target_id        = aws_instance.myec2.id   # Register the EC2 instance to the target group
-  port             = 80                       # The port for HTTP traffic
-}
-
-# Register the Second EC2 Instance to the Target Group
-resource "aws_lb_target_group_attachment" "my_target_group_attachment_b" {
-  target_group_arn = aws_lb_target_group.my_target_group.arn
-  target_id        = aws_instance.myec2_b.id   # Register the second EC2 instance
-  port             = 80                         # The port for HTTP traffic
-}
-
-
 # Configure the Elastic Load Balancer (ALB)
 resource "aws_lb" "my_alb" {
-  name               = "my-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.allow_web_traffic.id]  # Attach the security group
+  name                      = "my-alb"
+  internal                  = false
+  load_balancer_type        = "application"
+  security_groups           = [aws_security_group.allow_web_traffic.id]
 
-  # Define subnets in multiple Availability Zones for cross-zone load balancing
-    subnets = [
-        aws_subnet.my_subnet_a.id, 
-        aws_subnet.my_subnet_b.id
-    ]
+  subnets = flatten([for subnet in aws_subnet.public_subnets : subnet.id])
 
-
-  enable_deletion_protection = false
-  enable_cross_zone_load_balancing = true  # Enable cross-zone load balancing
+  enable_deletion_protection        = false
+  enable_cross_zone_load_balancing = true
 
   tags = {
     Name = "MyALB"
@@ -209,31 +205,67 @@ resource "aws_lb_listener" "http_listener" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.my_target_group.arn  # Forward traffic to the target group
+    target_group_arn = aws_lb_target_group.my_target_group.arn
   }
 }
 
-output "ec2_public_ip_a" {
-  value = aws_instance.myec2.public_ip
-  description = "Public IP of the first EC2 instance"
+# Auto Scaling Group
+resource "aws_autoscaling_group" "my_asg" {
+  desired_capacity     = 2
+  max_size             = 5
+  min_size             = 2
+  vpc_zone_identifier  = flatten([for subnet in aws_subnet.public_subnets : subnet.id])
+  health_check_type    = "EC2"
+  health_check_grace_period = 300
+  force_delete         = true
+
+  launch_template {
+    id      = aws_launch_template.my_launch_template.id
+    version = "$Latest"
+  }
+
+  target_group_arns = [aws_lb_target_group.my_target_group.arn]
+
+  tag {
+    key                 = "Name"
+    value               = "auto-scaled-ec2"
+    propagate_at_launch = true
+  }
 }
 
-output "ec2_public_ip_b" {
-  value = aws_instance.myec2_b.public_ip
-  description = "Public IP of the second EC2 instance"
+# Output information about ASG
+output "asg_name" {
+  value       = aws_autoscaling_group.my_asg.name
+  description = "The name of the Auto Scaling Group"
 }
 
+# List of instance IDs with AWS data source
+data "aws_instances" "asg_instances" {
+  filter {
+    name   = "tag:Name"
+    values = ["auto-scaled-ec2"]
+  }
+}
+
+output "asg_instances" {
+  value       = data.aws_instances.asg_instances.ids
+  description = "List of instance IDs in the Auto Scaling Group"
+}
+
+# Output information about Load Balancer
 output "alb_dns_name" {
-  value = aws_lb.my_alb.dns_name
+  value       = aws_lb.my_alb.dns_name
   description = "DNS name of the Application Load Balancer (ALB)"
 }
 
+# Output information about security group
 output "security_group_id" {
-  value = aws_security_group.allow_web_traffic.id
+  value       = aws_security_group.allow_web_traffic.id
   description = "ID of the Security Group used by EC2 and ALB"
 }
 
+# Output information about VPC
 output "vpc_id" {
-  value = aws_vpc.my_vpc.id
+  value       = aws_vpc.main.id
   description = "ID of the VPC"
 }
