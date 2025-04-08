@@ -63,8 +63,8 @@ This project includes a custom Python script to create PostgreSQL database backu
 To run the backup manually, execute the following command in your terminal:
 
 ```bash
-PGPASSWORD='your_password' python3 backup/backup_to_s3.py
-
+  PGPASSWORD='your_password' python3 backup/backup_to_s3.py
+```
 
 ## Notes
 - Ensure that the provided `vpc_id` and `subnet` exist within your AWS account.
@@ -72,7 +72,7 @@ PGPASSWORD='your_password' python3 backup/backup_to_s3.py
 
 ## Video Explanation
 Check out my YouTube video where I explain my thoughts on this Terraform setup:
-[Watch Here](https://youtu.be/bX18diFLLx0)
+[Watch Here](https://youtu.be/_B6olcZk1uA)
 
 ## License
 This project is licensed under the MIT License.
