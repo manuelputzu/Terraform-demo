@@ -53,6 +53,18 @@ instance_type = "t2.micro"
    ```sh
    terraform destroy -auto-approve
    ```
+   
+## Backup Strategy
+
+This project includes a custom Python script to create PostgreSQL database backups and upload them to Amazon S3 for secure, durable storage.
+
+### 🧪 Running the Backup
+
+To run the backup manually, execute the following command in your terminal:
+
+```bash
+PGPASSWORD='your_password' python3 backup/backup_to_s3.py
+
 
 ## Notes
 - Ensure that the provided `vpc_id` and `subnet` exist within your AWS account.
